@@ -125,6 +125,8 @@
  *  'V' : get_utmで性能評価用システム時刻を2回読む．
  *  'v' : 発行したシステムコールを表示する（デフォルト）．
  *  'q' : 発行したシステムコールを表示しない．
+ *
+ *  'L' : GPIO16のレベルをHigh/Lowする（ラズパイ用BCM283x）
  */
 
 #include <kernel.h>
@@ -854,6 +856,25 @@ void main_task(intptr_t exinf)
 			break;
 		case 'q':
 			SVC_PERROR(syslog_msk_log(LOG_UPTO(LOG_NOTICE), LOG_UPTO(LOG_EMERG)));
+			break;
+		case 'L':
+			/* GPIO16を出力に設定  */
+		    server_req = sil_rew_mem((uint32_t *)GPIO_GPFSEL1);
+			server_req |= 0x01 << (3 * 6);
+			sil_wrw_mem((uint32_t *)GPIO_GPFSEL1, server_req);
+
+			/* GPIOのレベルを取得 */
+			server_req = sil_rew_mem((uint32_t *)GPIO_GPLEV0);
+			if (server_req & (0x01 << 16)) {
+				/* High出力ならば、Low出力へ変更 */
+				sil_wrw_mem((uint32_t *)GPIO_GPCLR0, 0x01 << 16);
+				syslog(LOG_NOTICE, "GPIO16 is Low Level.");
+			}
+			else {
+				/* Low出力ならば、High出力へ変更 */
+				sil_wrw_mem((uint32_t *)GPIO_GPSET0, 0x01 << 16);
+				syslog(LOG_NOTICE, "GPIO16 is High Level.");
+			}
 			break;
 #ifdef BIT_KERNEL
 		case ' ':
